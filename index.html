@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Diary V6 - Ultimate Edition</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    body {
+      transition: background-color 0.3s, color 0.3s;
+    }
+    .editor-toolbar button:hover {
+      background-color: #e0e7ff;
+    }
+    .tag {
+      @apply inline-block bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded mr-2;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-900 font-sans" id="body">
+  <!-- HEADER -->
+  <header class="bg-white shadow-md p-4 flex justify-between items-center sticky top-0 z-50">
+    <h1 class="text-2xl font-bold text-blue-800">📘 My Diary V6</h1>
+    <div class="flex gap-2 flex-wrap">
+      <button onclick="newEntry()" class="bg-blue-100 px-3 py-1 rounded">📝 New</button>
+      <button onclick="openLastEntry()" class="bg-blue-100 px-3 py-1 rounded">📂 Open</button>
+      <button onclick="saveAsPDF()" class="bg-blue-100 px-3 py-1 rounded">📄 PDF</button>
+      <button onclick="saveAsTXT()" class="bg-blue-100 px-3 py-1 rounded">📄 TXT</button>
+      <button onclick="toggleTheme()" class="bg-blue-100 px-3 py-1 rounded">🌓 Theme</button>
+      <button onclick="toggleSettings()" class="bg-blue-100 px-3 py-1 rounded">⚙️ Settings</button>
+    </div>
+  </header>
+
+  <!-- SETTINGS MODAL -->
+  <div id="settingsModal" class="hidden fixed inset-0 bg-black/50 flex justify-center items-center z-50">
+    <div class="bg-white p-6 rounded shadow-md w-full max-w-lg">
+      <h2 class="text-xl font-bold mb-4">Settings</h2>
+      <label class="block mb-2">Mood-based Background:
+        <select onchange="setMood(this.value)" class="border px-2 py-1 w-full">
+          <option value="none">None</option>
+          <option value="happy">Happy</option>
+          <option value="sad">Sad</option>
+          <option value="angry">Angry</option>
+        </select>
+      </label>
+      <button onclick="toggleSettings()" class="mt-4 bg-blue-500 text-white px-4 py-2 rounded">Close</button>
+    </div>
+  </div>
+
+  <!-- MAIN EDITOR -->
+  <main class="max-w-6xl mx-auto p-4">
+    <div class="editor-toolbar flex gap-2 mb-2">
+      <button onclick="format('bold')" class="bg-gray-200 px-2 py-1 rounded">B</button>
+      <button onclick="format('italic')" class="bg-gray-200 px-2 py-1 rounded">I</button>
+      <button onclick="format('underline')" class="bg-gray-200 px-2 py-1 rounded">U</button>
+      <button onclick="insertDate()" class="bg-gray-200 px-2 py-1 rounded">📅</button>
+    </div>
+    <div contenteditable="true" id="editor" class="min-h-[20rem] p-4 border bg-white rounded shadow outline-none"></div>
+    <input type="text" id="tagInput" placeholder="Add tags (comma separated)" class="mt-2 w-full p-2 border rounded" />
+    <button onclick="saveEntry()" class="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded shadow">💾 Save Entry</button>
+  </main>
+
+  <!-- ENTRIES SECTION -->
+  <section class="max-w-6xl mx-auto mt-10">
+    <h2 class="text-2xl font-bold text-gray-800 mb-4">📚 Saved Entries</h2>
+    <div id="entriesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+  </section>
+
+  <!-- TRASH SECTION -->
+  <section class="max-w-6xl mx-auto mt-10">
+    <h2 class="text-xl font-bold text-red-500 mb-2">🗑 Trash</h2>
+    <div id="trashGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+  </section>
+
+  <script>
+    const editor = document.getElementById("editor");
+    const tagInput = document.getElementById("tagInput");
+    const settingsModal = document.getElementById("settingsModal");
+    let isDark = false;
+
+    function format(command) {
+      document.execCommand(command, false, null);
+    }
+
+    function insertDate() {
+      const now = new Date().toLocaleString();
+      document.execCommand("insertText", false, `\n${now}\n`);
+    }
+
+    function saveEntry() {
+      const content = editor.innerHTML.trim();
+      const tags = tagInput.value.trim();
+      if (!content) return alert("Write something first!");
+      const entries = JSON.parse(localStorage.getItem("diaryEntries") || "[]");
+      entries.unshift({ id: Date.now(), html: content, tags });
+      localStorage.setItem("diaryEntries", JSON.stringify(entries));
+      editor.innerHTML = "";
+      tagInput.value = "";
+      showEntries();
+    }
+
+    function showEntries() {
+      const entries = JSON.parse(localStorage.getItem("diaryEntries") || "[]");
+      const grid = document.getElementById("entriesGrid");
+      grid.innerHTML = "";
+      entries.forEach(entry => {
+        const card = document.createElement("div");
+        card.className = "bg-white p-4 rounded shadow border hover:shadow-md";
+        card.innerHTML = `
+          <div class="text-xs text-gray-400">${new Date(entry.id).toLocaleString()}</div>
+          <div class="mt-2 text-gray-800 text-sm line-clamp-4">${entry.html}</div>
+          <div class="text-xs text-blue-700 mt-1">${entry.tags}</div>
+          <div class="mt-2 flex justify-between">
+            <button onclick="loadEntry(${entry.id})" class="text-blue-600">📖 Open</button>
+            <button onclick="moveToTrash(${entry.id})" class="text-red-600">🗑 Delete</button>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+      loadTrash();
+    }
+
+    function loadEntry(id) {
+      const entries = JSON.parse(localStorage.getItem("diaryEntries") || "[]");
+      const entry = entries.find(e => e.id === id);
+      if (entry) {
+        editor.innerHTML = entry.html;
+        tagInput.value = entry.tags;
+      }
+    }
+
+    function moveToTrash(id) {
+      let entries = JSON.parse(localStorage.getItem("diaryEntries") || "[]");
+      let trash = JSON.parse(localStorage.getItem("diaryTrash") || "[]");
+      const index = entries.findIndex(e => e.id === id);
+      if (index !== -1) {
+        trash.unshift(entries[index]);
+        entries.splice(index, 1);
+        localStorage.setItem("diaryEntries", JSON.stringify(entries));
+        localStorage.setItem("diaryTrash", JSON.stringify(trash));
+        showEntries();
+      }
+    }
+
+    function restoreFromTrash(id) {
+      let trash = JSON.parse(localStorage.getItem("diaryTrash") || "[]");
+      let entries = JSON.parse(localStorage.getItem("diaryEntries") || "[]");
+      const index = trash.findIndex(e => e.id === id);
+      if (index !== -1) {
+        entries.unshift(trash[index]);
+        trash.splice(index, 1);
+        localStorage.setItem("diaryTrash", JSON.stringify(trash));
+        localStorage.setItem("diaryEntries", JSON.stringify(entries));
+        showEntries();
+      }
+    }
+
+    function loadTrash() {
+      const trash = JSON.parse(localStorage.getItem("diaryTrash") || "[]");
+      const grid = document.getElementById("trashGrid");
+      grid.innerHTML = "";
+      trash.forEach(entry => {
+        const card = document.createElement("div");
+        card.className = "bg-gray-100 p-3 rounded border text-sm";
+        card.innerHTML = `
+          <div class="text-xs text-gray-500">${new Date(entry.id).toLocaleString()}</div>
+          <div class="mt-1 text-gray-700">${entry.html}</div>
+          <button onclick="restoreFromTrash(${entry.id})" class="text-green-600 mt-2">♻️ Restore</button>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function toggleTheme() {
+      const body = document.getElementById("body");
+      isDark = !isDark;
+      if (isDark) {
+        body.classList.add("bg-gray-900", "text-gray-100");
+        body.classList.remove("bg-gray-100", "text-gray-900");
+      } else {
+        body.classList.add("bg-gray-100", "text-gray-900");
+        body.classList.remove("bg-gray-900", "text-gray-100");
+      }
+    }
+
+    function toggleSettings() {
+      settingsModal.classList.toggle("hidden");
+    }
+
+    function setMood(mood) {
+      const body = document.getElementById("body");
+      body.style.backgroundImage = "";
+      if (mood === "happy") body.style.backgroundColor = "#fef9c3";
+      else if (mood === "sad") body.style.backgroundColor = "#c7d2fe";
+      else if (mood === "angry") body.style.backgroundColor = "#fecaca";
+      else body.style.backgroundColor = isDark ? "#1f2937" : "#f3f4f6";
+    }
+
+    function newEntry() {
+      editor.innerHTML = "";
+      tagInput.value = "";
+    }
+
+    function saveAsPDF() {
+      const content = editor.innerText.trim();
+      if (!content) return alert("Write something first!");
+      const blob = new Blob([content], { type: 'application/pdf' });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `DiaryEntry-${new Date().toISOString().split('T')[0]}.pdf`;
+      link.click();
+    }
+
+    function saveAsTXT() {
+      const content = editor.innerText.trim();
+      if (!content) return alert("Write something first!");
+      const blob = new Blob([content], { type: 'text/plain' });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `DiaryEntry-${new Date().toISOString().split('T')[0]}.txt`;
+      link.click();
+    }
+
+    function openLastEntry() {
+      const entries = JSON.parse(localStorage.getItem("diaryEntries") || "[]");
+      if (entries.length) {
+        editor.innerHTML = entries[0].html;
+        tagInput.value = entries[0].tags;
+      } else alert("No entries found!");
+    }
+
+    window.onload = showEntries;
+  </script>
+</body>
+</html>
