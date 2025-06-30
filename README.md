@@ -59,6 +59,7 @@ To get started quickly, clone this repository using:
 ```sh
 git clone https://github.com/Lucky-Joshi/Diary-Entry-App-V6.git
 cd Diary-Entry-App-V6
+---
 
 ---
 
